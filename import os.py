@@ -9,6 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
 from webdriver_manager.chrome import ChromeDriverManager
+import requests
 
 # Create folder
 folder_name = "model_images"
@@ -67,39 +68,32 @@ try:
             print("Waiting 3 seconds...")
             time.sleep(3)
             
-            # Find and right-click the large image
+            # Find the large image
             large_image = wait.until(EC.presence_of_element_located((
-                By.CSS_SELECTOR, "img[jsname='HiaYvf']"
+                By.CSS_SELECTOR, "img[src][jsname='kn3ccd']"
             )))
-            
-            # Right click the image
-            actions.move_to_element(large_image)
-            actions.context_click()
-            actions.perform()
-            time.sleep(1)
-            
-            # Navigate menu and save image (for Mac)
-            actions.send_keys(Keys.ARROW_DOWN)
-            actions.send_keys(Keys.ARROW_DOWN)
-            actions.send_keys(Keys.ARROW_DOWN)
-            actions.send_keys(Keys.RETURN)
-            actions.perform()
-            time.sleep(2)
-            
-            # Input filename and save
-            actions.send_keys(f"model_{index + 1}")
-            actions.send_keys(Keys.RETURN)
-            actions.perform()
-            time.sleep(2)
-            
+            high_quality_url = large_image.get_attribute("src")
+
+            # Download the image using requests
+            if high_quality_url and high_quality_url.startswith("http"):
+                response = requests.get(high_quality_url, stream=True)
+                if response.status_code == 200:
+                    file_path = os.path.join(folder_name, f"model_{index + 1}.jpg")
+                    with open(file_path, "wb") as file:
+                        for chunk in response.iter_content(1024):
+                            file.write(chunk)
+                    print(f"Saved image {index + 1} to {file_path}")
+                else:
+                    print(f"Failed to download image {index + 1}: HTTP {response.status_code}")
+            else:
+                print(f"No valid URL found for image {index + 1}")
+
             # Close the image viewer
             close_button = wait.until(EC.element_to_be_clickable((
                 By.CSS_SELECTOR, "button[jsname='tJiF1e']"
             )))
             close_button.click()
             time.sleep(1)
-            
-            print(f"Saved image {index + 1}")
 
         except Exception as e:
             print(f"Error processing image {index + 1}: {str(e)}")
@@ -108,3 +102,14 @@ try:
                 driver.find_element(By.CSS_SELECTOR, "button[jsname='tJiF1e']").click()
             except:
                 pass
+
+except Exception as e:
+    print(f"An error occurred:")
+    print(f"Error type: {type(e).__name__}")
+    print(f"Error message: {str(e)}")
+
+finally:
+    time.sleep(2)
+    driver.quit()
+    print(f"\nProcess complete! Check the '{folder_name}' folder for your images.")
+
